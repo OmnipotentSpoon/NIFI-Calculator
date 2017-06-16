@@ -144,8 +144,6 @@ def rhcalc(Tmin,Tmax,Tsub,SS):
 
 class MainWindow:
     def __init__(self, master):
-        
-        
         # The following are the variable declarations for the GUI
         self.RHcalc = tk.IntVar()
         self.SScalc = tk.IntVar()
@@ -158,23 +156,10 @@ class MainWindow:
         
         self.RHcalc.set(1)
         
-        def calculate(self, RHcalc, SScalc, Tmin, Tmax, Tsub, SS, RH):
-            if(RHcalc == 1):
-                RH = rhcalc(Tmin, Tmax, Tsub, SS)
-                Result = RH
-            elif(SScalc == 1):
-                SS = sscalc(Tmin,Tmax,Tsub,RH)
-                Result = SS
-            else:
-                top = tk.Toplevel()
-                topLabel = tk.Label(top, text='Nothing is selected dummy.')
-                topLabel.pack()
-            self.Result.set(Result)
-            
-        
         # Create the checkboxes to decide what to compute
         self.RHcalcButton = tk.Checkbutton(master, text='Calculate RH', variable = self.RHcalc)
         self.SScalcButton = tk.Checkbutton(master, text='Calculate SS', variable = self.SScalc)
+
         
         # Create the 'labels', aka the text
         self.TmaxLabel = tk.Label(master, text='Max ambient temperature')
@@ -192,13 +177,16 @@ class MainWindow:
         
         # Create the calculation button
         self.ComputeButton = tk.Button(master, text='Calculate',
-                                       command = calculate(self, self.RHcalc.get(), 
+                                       command = self.calculate(self.RHcalc.get(), 
                                                            self.SScalc.get(), 
                                                            self.Tmin.get(),
                                                            self.Tmax.get(),
                                                            self.Tsub.get(),
                                                            self.SS.get(),
                                                            self.RH.get()))
+        self.ComputeButton = tk.Button(master, text='Calculate',
+                                       command = self.printThing)
+        
         self.ResultLabel = tk.Label(master, textvariable=self.Result)
         
         
@@ -223,8 +211,29 @@ class MainWindow:
         self.ComputeButton.grid(row=6, columnspan=2)
         self.ResultLabel.grid(row=7,columnspan=2)
         
+        if(self.RHcalc.get()==1):
+            print 'RHcalc'
+        else:
+            print 'SScalc'
+            
+    def calculate(self, RHcalc, SScalc, Tmin, Tmax, Tsub, SS, RH):
+            if(RHcalc == 1):
+                RH = rhcalc(Tmin, Tmax, Tsub, SS)
+                Result = RH
+            elif(SScalc == 1):
+                SS = sscalc(Tmin,Tmax,Tsub,RH)
+                Result = SS
+            else:
+                top = tk.Toplevel()
+                topLabel = tk.Label(top, text='Nothing is selected dummy.')
+                topLabel.pack()
+            self.Result.set(Result)
+            print 'Calculated'
+    
+    def printThing(self):
+        rhString = str(self.RH.get())
+        print 'I did it' + rhString
         
-
 root = tk.Tk()
 gui = MainWindow(root)
 root.mainloop()
