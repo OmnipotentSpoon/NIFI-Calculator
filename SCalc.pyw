@@ -131,9 +131,9 @@ def tsubcalc(Tmin,Tmax,RH,SS):
     '''    
     Tguess = -50.0
     SSguess = -100
-    while(abs(SSguess-SS) > 0.01):
+    while(abs(SSguess-SS) > 0.001):
         SSguess = sscalc(Tmin, Tmax, Tguess, RH)
-        Tguess = Tguess + 0.005
+        Tguess = Tguess + 0.001
         if(Tguess > 60):
             break
     
@@ -151,6 +151,7 @@ class MainWindow:
         self.RH = tk.DoubleVar()
         self.SS = tk.DoubleVar()
         self.Result = tk.DoubleVar()
+
         
         # This gets the values that were 
         PreviousSettingsPath = 'Files/PreviousSettings.csv'
@@ -170,11 +171,11 @@ class MainWindow:
         
 
         # Create the checkboxes to decide what to compute
-        self.RHcalcButton = tk.Checkbutton(master, text='Calculate RH',
+        self.RHcalcButton = tk.Checkbutton(master, text='Solve for RH', width=10,
                                            variable = self.RHbox, command=self.rhUpdate)
-        self.SScalcButton = tk.Checkbutton(master, text='Calculate SS',
+        self.SScalcButton = tk.Checkbutton(master, text='Solve for SS', width=10,
                                            variable = self.SSbox, command=self.ssUpdate)
-        self.TsubcalcButton = tk.Checkbutton(master, text='Calculate Tsub',
+        self.TsubcalcButton = tk.Checkbutton(master, text='Solve for Tsub', width=10,
                                            variable = self.Tsubbox, command=self.tsubUpdate)
 
         # Create the 'labels', aka the text
@@ -193,9 +194,9 @@ class MainWindow:
         
         # Create the calculation button
         self.ComputeButton = tk.Button(master, text='Calculate',
-                                       command = self.calculate, width=40)
+                                       command = self.calculate, width=45)
         self.ResultLabel = tk.Label(master, text='')
-        self.ResultNumLabel = tk.Label(master, text='Nothing yet')
+        self.ResultNumLabel = tk.Label(master, text='')
         self.ResultNumLabel.configure(font=('Segoe UI', 15))
         
         # Place the checkboxes
@@ -204,14 +205,14 @@ class MainWindow:
         self.TsubcalcButton.grid(row=0, column=2)
         
         # These place the labels in the GUI
-        self.TmaxLabel.grid(row=1, column=0)
-        self.TminLabel.grid(row=2, column=0)
-        self.TsubLabel.grid(row=3, column=0)
+        self.TmaxLabel.grid(row=1, column=0, columnspan=2)
+        self.TminLabel.grid(row=2, column=0, columnspan=2)
+        self.TsubLabel.grid(row=3, column=0, columnspan=2)
 
         # These place the entries in the GUI
-        self.TmaxEntry.grid(row=1, column=1)
-        self.TminEntry.grid(row=2, column=1)
-        self.TsubEntry.grid(row=3, column=1)
+        self.TmaxEntry.grid(row=1, column=2)
+        self.TminEntry.grid(row=2, column=2)
+        self.TsubEntry.grid(row=3, column=2)
         
         
         if(self.RHbox.get()==1 and self.SSbox.get()==0 and self.Tsubbox.get()==0):
@@ -221,9 +222,9 @@ class MainWindow:
         elif(self.RHbox.get()==0 and self.SSbox.get()==0 and self.Tsubbox.get()==1):
             self.tsubUpdate()
         
-        self.ComputeButton.grid(row=6, columnspan=2)
-        self.ResultLabel.grid(row=7,column=0)
-        self.ResultNumLabel.grid(row=7,column=1)
+        self.ComputeButton.grid(row=6, columnspan=3)
+        self.ResultLabel.grid(row=7,column=0, columnspan=2)
+        self.ResultNumLabel.grid(row=7,column=2)
         
         master.protocol("WM_DELETE_WINDOW",self.saveValues)
         
@@ -251,10 +252,10 @@ class MainWindow:
         '''
         Show the proper fields when solving for RH
         '''
-        self.SSLabel.grid(row=5, column=0)
-        self.SSEntry.grid(row=5, column=1)
-        self.TsubLabel.grid(row=3, column=0)
-        self.TsubEntry.grid(row=3, column=1)
+        self.SSLabel.grid(row=5, column=0, columnspan=2)
+        self.SSEntry.grid(row=5, column=2)
+        self.TsubLabel.grid(row=3, column=0, columnspan=2)
+        self.TsubEntry.grid(row=3, column=2)
         self.RHLabel.grid_forget()
         self.RHEntry.grid_forget()
         self.SSbox.set(0)
@@ -267,10 +268,10 @@ class MainWindow:
         '''
         Show the proper fields when solving for SS
         '''
-        self.RHLabel.grid(row=4, column=0)
-        self.RHEntry.grid(row=4, column=1)
-        self.TsubLabel.grid(row=3, column=0)
-        self.TsubEntry.grid(row=3, column=1)
+        self.RHLabel.grid(row=4, column=0, columnspan=2)
+        self.RHEntry.grid(row=4, column=2)
+        self.TsubLabel.grid(row=3, column=0, columnspan=2)
+        self.TsubEntry.grid(row=3, column=2)
         self.SSLabel.grid_forget()
         self.SSEntry.grid_forget()
         self.RHbox.set(0)
@@ -282,16 +283,16 @@ class MainWindow:
         '''
         Show the proper fields when solving for SS
         '''
-        self.RHLabel.grid(row=4, column=0)
-        self.RHEntry.grid(row=4, column=1)
-        self.SSLabel.grid(row=5, column=0)
-        self.SSEntry.grid(row=5, column=1)
+        self.RHLabel.grid(row=4, column=0, columnspan=2)
+        self.RHEntry.grid(row=4, column=2)
+        self.SSLabel.grid(row=5, column=0, columnspan=2)
+        self.SSEntry.grid(row=5, column=2)
         self.TsubLabel.grid_forget()
         self.TsubEntry.grid_forget()
         self.RHbox.set(0)
         self.SSbox.set(0)
         self.ComputeButton.config(text='Calculate substrate temperature')
-        self.ResultLabel.config(text='The temperature is')
+        self.ResultLabel.config(text='The substrate temperature is')
     
     def quitWindow(self):
         root.destroy()
