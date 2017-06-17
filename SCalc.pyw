@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 14 21:18:06 2017
+Created on Wed Jun 16 21:18:06 2017
 
 @author: Corey
 """
@@ -10,7 +10,6 @@ import csv
 import os
 import os.path
 ScriptDir = os.path.dirname(__file__)
-
 
 def kelvin(Temp):
     '''
@@ -35,6 +34,44 @@ def spice(Temp):
     '''
     SPice=math.exp(9.550426-5723.265/Temp+3.53068*math.log(Temp)-0.00728332*Temp)
     return SPice
+
+
+def avgpinf(Tmin,Tmax,RH):
+    '''
+    Calculate the average ambient pressure
+    '''
+    Tmax = kelvin(Tmax)
+    Tmin = kelvin(Tmin)
+    spMax = spwater(Tmax)
+    spMin = spwater(Tmin)
+    
+    pinfMax = (spMax*RH)/100
+    pinfMin = (spMin*RH)/100
+    
+    pinf = (pinfMax+pinfMin)/2
+    return pinf
+    
+def avgspwater(Tmin,Tmax):
+    '''
+    Calculate the average ambient saturation pressure over water
+    '''
+    Tmax = kelvin(Tmax)
+    Tmin = kelvin(Tmin)
+    spMin = spwater(Tmin)
+    spMax = spwater(Tmax)
+    avg = (spMin+spMax)/2
+    return avg
+    
+def avgspice(Tmin,Tmax):
+    '''
+    Calculate the average ambient saturation pressure over ice
+    '''
+    Tmax = kelvin(Tmax)
+    Tmin = kelvin(Tmin)
+    spMin = spice(Tmin)
+    spMax = spice(Tmax)
+    avg = (spMin+spMax)/2
+    return avg
 
 def sscalc(Tmin,Tmax,Tsub,RH):
     '''
@@ -77,7 +114,6 @@ def sscalc(Tmin,Tmax,Tsub,RH):
     
     SS = (sMax + sMin)/2
     return SS
-
 
 def rhcalc(Tmin,Tmax,Tsub,SS):
     '''
@@ -128,7 +164,11 @@ def tsubcalc(Tmin,Tmax,RH,SS):
     Tmax is the upper bound of the ambient temperature
     RH is the relative humidity
     SS is the supersaturation
-    '''    
+    '''
+    # These are the initial guesses, it's not very pretty
+    # SSguess is overwritten immediately when the loop starts
+    # basically increment temperature from -50 by 0.001 until the
+    # difference between the guess and the given Supersaturation is less than 0.001
     Tguess = -50.0
     SSguess = -100
     while(abs(SSguess-SS) > 0.001):
@@ -136,7 +176,6 @@ def tsubcalc(Tmin,Tmax,RH,SS):
         Tguess = Tguess + 0.001
         if(Tguess > 60):
             break
-    
     return Tguess
 
 class MainWindow:
@@ -157,6 +196,14 @@ class MainWindow:
         self.SSResult = tk.DoubleVar()
         self.TsubResult = tk.DoubleVar()
         self.nDecimals = tk.IntVar()
+        self.spwbox = tk.IntVar()
+        self.spibox = tk.IntVar()
+        self.pinfbox = tk.IntVar()
+        self.spwAVal = tk.DoubleVar() # Ambient SP over water
+        self.spwSVal = tk.DoubleVar() # Substrate SP over water
+        self.spiAVal = tk.DoubleVar()
+        self.spiSVal = tk.DoubleVar()
+        self.pinfVal = tk.DoubleVar()
         
         # This gets the values that were 
         PreviousSettingsPath = 'Files/PreviousSettings.csv'
@@ -177,6 +224,14 @@ class MainWindow:
         self.SSResult.set(PreviousSettings[9])
         self.TsubResult.set(PreviousSettings[10])
         self.nDecimals.set(PreviousSettings[11])
+        self.spwbox.set(PreviousSettings[12])
+        self.spibox.set(PreviousSettings[13])
+        self.pinfbox.set(PreviousSettings[14])
+        self.spwAVal.set(PreviousSettings[15])
+        self.spwSVal.set(PreviousSettings[16])
+        self.spiAVal.set(PreviousSettings[17])
+        self.spiSVal.set(PreviousSettings[18])
+        self.pinfVal.set(PreviousSettings[19])
         
         ################################################################
         # Creating the GUI widgets
@@ -214,9 +269,22 @@ class MainWindow:
                                        command = self.calculate, width=45)
         self.ResultLabel = tk.Label(master, text='')
         self.ResultNumLabel = tk.Label(master, text='')
+        self.ResultLabel.configure(font=('Segoe UI', 11))
         self.ResultNumLabel.configure(font=('Segoe UI', 15))
-        self.spwLabel = tk.Label(master, text='Saturation pressure over water')
-        self.spiLabel = tk.Label(master, text='Saturation pressure over ice')
+        
+        #Create the extra information labels
+        self.spwALabel = tk.Label(master, text='Ambient saturation pressure over water',width=30,anchor=tk.E)
+        self.spwAValLabel = tk.Label(master, textvariable=self.spwAVal,anchor=tk.W)
+        self.spwSLabel = tk.Label(master, text='Substrate saturation pressure over water',width=30,anchor=tk.E)
+        self.spwSValLabel = tk.Label(master, textvariable=self.spwSVal,anchor=tk.W)
+        
+        self.spiALabel = tk.Label(master, text='Ambient saturation pressure over ice',width=30,anchor=tk.E)
+        self.spiAValLabel = tk.Label(master, textvariable=self.spiAVal,anchor=tk.W)
+        self.spiSLabel = tk.Label(master, text='Substrate saturation pressure over ice',width=30,anchor=tk.E)
+        self.spiSValLabel = tk.Label(master, textvariable=self.spiSVal,anchor=tk.W)
+        
+        self.pinfLabel = tk.Label(master, text='Ambient pressure',width=30,anchor=tk.E)
+        self.pinfValLabel = tk.Label(master, textvariable=self.pinfVal,anchor=tk.W)
         
         
         ################################################################
@@ -251,6 +319,23 @@ class MainWindow:
         elif(self.RHbox.get()==0 and self.SSbox.get()==0 and self.Tsubbox.get()==1):
             self.tsubUpdate()
         
+        if(self.spwbox.get()==1):
+            self.spwALabel.grid(row=8,columnspan=2)
+            self.spwAValLabel.grid(row=8,column=2)
+            self.spwSLabel.grid(row=9,columnspan=2)
+            self.spwSValLabel.grid(row=9,column=2)
+            
+        if(self.spibox.get()==1):
+            self.spiALabel.grid(row=10,columnspan=2)
+            self.spiAValLabel.grid(row=10,column=2)
+            self.spiSLabel.grid(row=11,columnspan=2)
+            self.spiSValLabel.grid(row=11,column=2)
+            
+        if(self.pinfbox.get()==1):
+            self.pinfLabel.grid(row=12,columnspan=2)
+            self.pinfValLabel.grid(row=12,column=2)
+            
+            
         # This rebinds the window close red X to a function that will save the 
         # entered values and then close the window
         master.protocol("WM_DELETE_WINDOW",self.saveValues)
@@ -260,28 +345,44 @@ class MainWindow:
     ################################################################    
     
     def settingsMenu(self):
-            top = tk.Toplevel()
-            topLabel = tk.Label(top, text='Choose other things to display', width=30)
-            spwBox = tk.Checkbutton(top, text='Display saturation pressure over water', anchor=tk.W, width=30)
-            spiBox = tk.Checkbutton(top, text='Display saturation pressure over ice', anchor=tk.W, width=30)
-            pinfBox = tk.Checkbutton(top, text='Display P_infinity', anchor=tk.W, width=30)
-            nDecimalsLabel = tk.Label(top, text='Result decimal places', anchor=tk.W, width=20)
-            nDecimalsEntry = tk.Entry(top, textvariable=self.nDecimals, width=10)
-            topLabel.grid(row=0,columnspan=2)
-            spwBox.grid(row=1,columnspan=2)
-            spiBox.grid(row=2,columnspan=2)
-            pinfBox.grid(row=3,columnspan=2)
-            nDecimalsLabel.grid(row=4,column=0)
-            nDecimalsEntry.grid(row=4,column=1)
-            x = root.winfo_x()
-            y = root.winfo_y()
-            top.geometry("+%d+%d" % (x, y))
-            
+        '''
+        This is the box that pops up when the settings button is pressed
+        '''
+        # Create a frame called top that everything is placed in
+        top = tk.Toplevel()
+        
+        # Create the widgets
+        topLabel = tk.Label(top, text='Choose other things to display', width=30)
+        spwBox = tk.Checkbutton(top, text='Display saturation pressure over water',
+                                variable=self.spwbox, anchor=tk.W, width=30,
+                                command=self.spwUpdate)
+        spiBox = tk.Checkbutton(top, text='Display saturation pressure over ice',
+                                variable=self.spibox, anchor=tk.W, width=30,
+                                command=self.spiUpdate)
+        pinfBox = tk.Checkbutton(top, text='Display P_infinity',
+                                 variable=self.pinfbox, anchor=tk.W, width=30,
+                                 command=self.pinfUpdate)
+        nDecimalsLabel = tk.Label(top, text='Result decimal places', anchor=tk.W, width=20)
+        nDecimalsEntry = tk.Entry(top, textvariable=self.nDecimals, width=10)
+        
+        # Place the widgets into the window
+        topLabel.grid(row=0,columnspan=2)
+        spwBox.grid(row=1,columnspan=2)
+        spiBox.grid(row=2,columnspan=2)
+        pinfBox.grid(row=3,columnspan=2)
+        nDecimalsLabel.grid(row=4,column=0)
+        nDecimalsEntry.grid(row=4,column=1)
+        
+        # Set the location that the window appears to be the same as the main window
+        x = root.winfo_x()
+        y = root.winfo_y()
+        top.geometry("+%d+%d" % (x, y))
     
     def calculate(self):
         '''
-        Calculates the value desired when the compute button is pressed
+        Calculates the values desired when the compute button is pressed
         '''
+        # Check to see which box is selected and then calculate it
         if(self.RHbox.get() == 1):
             RH = round(rhcalc(self.Tmin.get(), self.Tmax.get(), self.Tsub.get(), self.SS.get()),self.nDecimals.get())
             Result = RH
@@ -294,15 +395,34 @@ class MainWindow:
             Tsub = round(tsubcalc(self.Tmin.get(),self.Tmax.get(),self.RH.get(), self.SS.get()),self.nDecimals.get())
             Result = Tsub
             self.TsubResult.set(Result)
-        else:
+        else: # If nothing is selected the user is insulted, as it should be
             top = tk.Toplevel()
             topLabel = tk.Label(top, text='Nothing is selected dummy.')
             topLabel.pack()
             x = root.winfo_x()
             y = root.winfo_y()
             top.geometry("+%d+%d" % (x, y))
-            
         self.ResultNumLabel.configure(text=Result)
+        
+        # Saturation pressure over water calculations
+        if(self.spwbox.get() == 1):
+            spwA = avgspwater(self.Tmin.get(),self.Tmax.get())
+            self.spwAVal.set(round(spwA,self.nDecimals.get()))
+            spwS = spwater(kelvin(self.Tsub.get()))
+            self.spwSVal.set(round(spwS,self.nDecimals.get()))
+        
+        # Saturation pressure over ice calculations
+        if(self.spibox.get() == 1):
+            spiA = avgspice(self.Tmin.get(),self.Tmax.get())
+            self.spiAVal.set(round(spiA,self.nDecimals.get()))
+            spiS = spice(kelvin(self.Tsub.get()))
+            self.spiSVal.set(round(spiS,self.nDecimals.get()))
+        
+        # Ambient pressure calculations
+        if(self.pinfbox.get() == 1):
+            pinf = avgpinf(self.Tmin.get(),self.Tmax.get(),self.RH.get())
+            self.pinfVal.set(round(pinf,self.nDecimals.get()))
+            
         
     def rhUpdate(self):
         '''
@@ -352,9 +472,50 @@ class MainWindow:
         self.ResultLabel.config(text='The substrate temperature is')
         self.ResultNumLabel.configure(text=str(self.TsubResult.get()))
     
+    def spwUpdate(self):
+        '''
+        Show the saturation pressure of water when the box is clicked
+        '''
+        if(self.spwbox.get()==1):
+            self.spwALabel.grid(row=8,columnspan=2)
+            self.spwAValLabel.grid(row=8,column=2)
+            self.spwSLabel.grid(row=9,columnspan=2)
+            self.spwSValLabel.grid(row=9,column=2)
+        else:
+            self.spwALabel.grid_forget()
+            self.spwAValLabel.grid_forget()
+            self.spwSLabel.grid_forget()
+            self.spwSValLabel.grid_forget()
+    
+    def spiUpdate(self):
+        '''
+        Show the saturation pressure of ice when the box is clicked
+        '''
+        if(self.spibox.get()==1):
+            self.spiALabel.grid(row=10,columnspan=2)
+            self.spiAValLabel.grid(row=10,column=2)
+            self.spiSLabel.grid(row=11,columnspan=2)
+            self.spiSValLabel.grid(row=11,column=2)
+        else:
+            self.spiALabel.grid_forget()
+            self.spiAValLabel.grid_forget()
+            self.spiSLabel.grid_forget()
+            self.spiSValLabel.grid_forget()
+    
+    def pinfUpdate(self):
+        '''
+        Show the saturation pressure of water when the box is clicked
+        '''
+        if(self.pinfbox.get()==1):
+            self.pinfLabel.grid(row=12,columnspan=2)
+            self.pinfValLabel.grid(row=12,column=2)
+        else:
+            self.pinfLabel.grid_forget()
+            self.pinfValLabel.grid_forget()
+    
     def quitWindow(self):
         '''
-        I feel like there's an easier way to do this but it's working so...
+        I feel like there's an easier way to do this, but it's working so...
         '''
         root.destroy()
     
@@ -372,7 +533,11 @@ class MainWindow:
                     self.Tmax.get(),self.Tmin.get(),self.Tsub.get(),
                     self.RH.get(),self.SS.get(),self.RHResult.get(),
                     self.SSResult.get(),self.TsubResult.get(),
-                    self.nDecimals.get()]
+                    self.nDecimals.get(),self.spwbox.get(),
+                    self.spibox.get(), self.pinfbox.get(),
+                    self.spwAVal.get(), self.spwSVal.get(),
+                    self.spiAVal.get(), self.spiSVal.get(),
+                    self.pinfVal.get()]
         # Write Settings into the csv file
         with open(SavePath, "w") as f:
             writer = csv.writer(f)
