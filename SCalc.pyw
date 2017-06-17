@@ -141,7 +141,10 @@ def tsubcalc(Tmin,Tmax,RH,SS):
 
 class MainWindow:
     def __init__(self, master):        
-        # The following are the variable declarations for the GUI
+        
+        ################################################################
+        # Variable declarations and setting intial values
+        ################################################################
         self.RHbox = tk.IntVar()
         self.SSbox = tk.IntVar()
         self.Tsubbox = tk.IntVar()
@@ -150,8 +153,10 @@ class MainWindow:
         self.Tsub = tk.DoubleVar()
         self.RH = tk.DoubleVar()
         self.SS = tk.DoubleVar()
-        self.Result = tk.DoubleVar()
-
+        self.RHResult = tk.DoubleVar()
+        self.SSResult = tk.DoubleVar()
+        self.TsubResult = tk.DoubleVar()
+        self.nDecimals = tk.IntVar()
         
         # This gets the values that were 
         PreviousSettingsPath = 'Files/PreviousSettings.csv'
@@ -168,8 +173,20 @@ class MainWindow:
         self.Tsub.set(PreviousSettings[5])
         self.RH.set(PreviousSettings[6])
         self.SS.set(PreviousSettings[7])
+        self.RHResult.set(PreviousSettings[8])
+        self.SSResult.set(PreviousSettings[9])
+        self.TsubResult.set(PreviousSettings[10])
+        self.nDecimals.set(PreviousSettings[11])
         
-
+        ################################################################
+        # Creating the GUI widgets
+        ################################################################
+        
+        # Create a top menu bar
+        self.menubar = tk.Menu(master)
+        self.menubar.add_command(label='Settings', command=self.settingsMenu)
+        master.config(menu=self.menubar)
+        
         # Create the checkboxes to decide what to compute
         self.RHcalcButton = tk.Checkbutton(master, text='Solve for RH', width=10,
                                            variable = self.RHbox, command=self.rhUpdate)
@@ -192,12 +209,19 @@ class MainWindow:
         self.RHEntry = tk.Entry(master, textvariable=self.RH,width=20)
         self.SSEntry = tk.Entry(master, textvariable=self.SS,width=20)
         
-        # Create the calculation button
+        # Create the calculation button and resulting values
         self.ComputeButton = tk.Button(master, text='Calculate',
                                        command = self.calculate, width=45)
         self.ResultLabel = tk.Label(master, text='')
         self.ResultNumLabel = tk.Label(master, text='')
         self.ResultNumLabel.configure(font=('Segoe UI', 15))
+        self.spwLabel = tk.Label(master, text='Saturation pressure over water')
+        self.spiLabel = tk.Label(master, text='Saturation pressure over ice')
+        
+        
+        ################################################################
+        # Set locations for the widgets
+        ################################################################
         
         # Place the checkboxes
         self.RHcalcButton.grid(row=0, column=0)
@@ -214,7 +238,12 @@ class MainWindow:
         self.TminEntry.grid(row=2, column=2)
         self.TsubEntry.grid(row=3, column=2)
         
+        # Place the bottom rows
+        self.ComputeButton.grid(row=6, columnspan=3)
+        self.ResultLabel.grid(row=7,column=0, columnspan=2)
+        self.ResultNumLabel.grid(row=7,column=2)
         
+        # Use previous session's values to determine the initial layout
         if(self.RHbox.get()==1 and self.SSbox.get()==0 and self.Tsubbox.get()==0):
             self.rhUpdate()
         elif(self.RHbox.get()==0 and self.SSbox.get()==1 and self.Tsubbox.get()==0):
@@ -222,31 +251,58 @@ class MainWindow:
         elif(self.RHbox.get()==0 and self.SSbox.get()==0 and self.Tsubbox.get()==1):
             self.tsubUpdate()
         
-        self.ComputeButton.grid(row=6, columnspan=3)
-        self.ResultLabel.grid(row=7,column=0, columnspan=2)
-        self.ResultNumLabel.grid(row=7,column=2)
-        
+        # This rebinds the window close red X to a function that will save the 
+        # entered values and then close the window
         master.protocol("WM_DELETE_WINDOW",self.saveValues)
         
+    ################################################################
+    # Functions defined in the MainWindow class but not __init__
+    ################################################################    
+    
+    def settingsMenu(self):
+            top = tk.Toplevel()
+            topLabel = tk.Label(top, text='Choose other things to display', width=30)
+            spwBox = tk.Checkbutton(top, text='Display saturation pressure over water', anchor=tk.W, width=30)
+            spiBox = tk.Checkbutton(top, text='Display saturation pressure over ice', anchor=tk.W, width=30)
+            pinfBox = tk.Checkbutton(top, text='Display P_infinity', anchor=tk.W, width=30)
+            nDecimalsLabel = tk.Label(top, text='Result decimal places', anchor=tk.W, width=20)
+            nDecimalsEntry = tk.Entry(top, textvariable=self.nDecimals, width=10)
+            topLabel.grid(row=0,columnspan=2)
+            spwBox.grid(row=1,columnspan=2)
+            spiBox.grid(row=2,columnspan=2)
+            pinfBox.grid(row=3,columnspan=2)
+            nDecimalsLabel.grid(row=4,column=0)
+            nDecimalsEntry.grid(row=4,column=1)
+            x = root.winfo_x()
+            y = root.winfo_y()
+            top.geometry("+%d+%d" % (x, y))
+            
+    
     def calculate(self):
         '''
         Calculates the value desired when the compute button is pressed
         '''
         if(self.RHbox.get() == 1):
-            RH = rhcalc(self.Tmin.get(), self.Tmax.get(), self.Tsub.get(), self.SS.get())
+            RH = round(rhcalc(self.Tmin.get(), self.Tmax.get(), self.Tsub.get(), self.SS.get()),self.nDecimals.get())
             Result = RH
+            self.RHResult.set(Result)
         elif(self.SSbox.get() == 1):
-            SS = sscalc(self.Tmin.get(),self.Tmax.get(),self.Tsub.get(),self.RH.get())
+            SS = round(sscalc(self.Tmin.get(),self.Tmax.get(),self.Tsub.get(),self.RH.get()),self.nDecimals.get())
             Result = SS
+            self.SSResult.set(Result)
         elif(self.Tsubbox.get() == 1):
-            Tsub = tsubcalc(self.Tmin.get(),self.Tmax.get(),self.RH.get(), self.SS.get())
+            Tsub = round(tsubcalc(self.Tmin.get(),self.Tmax.get(),self.RH.get(), self.SS.get()),self.nDecimals.get())
             Result = Tsub
+            self.TsubResult.set(Result)
         else:
             top = tk.Toplevel()
             topLabel = tk.Label(top, text='Nothing is selected dummy.')
             topLabel.pack()
-        roundedResult = str(round(Result,3))
-        self.ResultNumLabel.configure(text=roundedResult)
+            x = root.winfo_x()
+            y = root.winfo_y()
+            top.geometry("+%d+%d" % (x, y))
+            
+        self.ResultNumLabel.configure(text=Result)
         
     def rhUpdate(self):
         '''
@@ -262,7 +318,7 @@ class MainWindow:
         self.Tsubbox.set(0)
         self.ComputeButton.config(text='Calculate relative humidity')
         self.ResultLabel.config(text='The relative humidity is')
-        
+        self.ResultNumLabel.configure(text=str(self.RHResult.get()))
         
     def ssUpdate(self):
         '''
@@ -278,6 +334,7 @@ class MainWindow:
         self.Tsubbox.set(0)
         self.ComputeButton.config(text='Calculate supersaturation')
         self.ResultLabel.config(text='The supersaturation is')
+        self.ResultNumLabel.configure(text=str(self.SSResult.get()))
         
     def tsubUpdate(self):
         '''
@@ -293,18 +350,34 @@ class MainWindow:
         self.SSbox.set(0)
         self.ComputeButton.config(text='Calculate substrate temperature')
         self.ResultLabel.config(text='The substrate temperature is')
+        self.ResultNumLabel.configure(text=str(self.TsubResult.get()))
     
     def quitWindow(self):
+        '''
+        I feel like there's an easier way to do this but it's working so...
+        '''
         root.destroy()
     
     def saveValues(self):
+        '''
+        Here I save a csv file with the values that are in the window when it's
+        closed.  Then they are read when the program is next loaded so that things
+        are pretty and stuff
+        '''
+        # Create the path going to the csv
         SavePath = 'Files/PreviousSettings.csv'
         SavePath = os.path.join(ScriptDir, SavePath)
-        Settings = [self.RHbox.get(),self.SSbox.get(),self.Tsubbox.get(),self.Tmax.get(),self.Tmin.get(),
-                    self.Tsub.get(),self.RH.get(),self.SS.get()]
+        # Get all of the entered values into a list called Settings
+        Settings = [self.RHbox.get(),self.SSbox.get(),self.Tsubbox.get(),
+                    self.Tmax.get(),self.Tmin.get(),self.Tsub.get(),
+                    self.RH.get(),self.SS.get(),self.RHResult.get(),
+                    self.SSResult.get(),self.TsubResult.get(),
+                    self.nDecimals.get()]
+        # Write Settings into the csv file
         with open(SavePath, "w") as f:
             writer = csv.writer(f)
             writer.writerow(Settings)
+        # Close the window by calling the quitWindow function
         self.quitWindow()
     
 root = tk.Tk()
